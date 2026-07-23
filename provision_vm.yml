@@ -37,7 +37,7 @@
     boot_image_source_namespace: openshift-virtualization-os-images
 
     # ----- Network -----
-    vm_mac_address: "02:ff:39:00:00:03"
+    vm_mac_address: "02:ff:39:00:00:45"
     vm_network_name: default
 
     # ----- Run strategy -----
