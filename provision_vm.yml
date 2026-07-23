@@ -77,7 +77,7 @@
                   - cloudInitNoCloud:
                       userData: |-
                         #cloud-config
-                        user: fedora
+                        user: rhel
                         password: openshift
                         chpasswd:
                           expire: false
