@@ -52,5 +52,3 @@ argocd_sync_wave: "2"
 
 # ----- Machine type (optional – leave blank to use cluster default) -----
 vm_machine_type: ""                   # e.g. pc-q35-rhel9.4.0  (empty = omit from manifest)
-# ----- Machine type (optional – leave blank to use cluster default) -----
-vm_machine_type: ""                   # e.g. pc-q35-rhel9.4.0  (empty = omit from manifest)
