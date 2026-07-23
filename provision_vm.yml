@@ -70,6 +70,7 @@
                     name: fedora # This points to the default OpenShift Virt boot source
                     namespace: openshift-virtualization-os-images
                   storage:
+                    storageClassName: ocs-external-storagecluster-ceph-rbd
                     resources:
                       requests:
                         storage: "{{ boot_image_size }}"
