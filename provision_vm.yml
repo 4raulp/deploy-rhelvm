@@ -13,15 +13,8 @@
 #      ansible-galaxy collection install kubernetes.core
 #  • A kubeconfig or in-cluster SA token available to the EE.
 #
-#  Variables (all in vars/vm_vars.yml)
-#  ------------------------------------
-#    vm_name, vm_namespace, vm_instancetype, vm_preference,
-#    vm_cpu_cores, vm_memory, boot_image_size,
-#    boot_image_source_name, boot_image_source_namespace,
-#    vm_mac_address, vm_run_strategy,
-#    vm_ssh_secret_name, cloud_init_user, cloud_init_password,
-#    cloud_init_ssh_pwauth, argocd_app_instance, argocd_sync_wave,
-#    vm_machine_type
+#  All variables have safe defaults below — the playbook runs as-is.
+#  Override via AAP Survey, Extra Variables, or vars/vm_vars.yml.
 # ============================================================
 
 - name: Provision RHEL 9 VM on OpenShift Virtualization
@@ -29,8 +22,41 @@
   connection: local
   gather_facts: false
 
-  vars_files:
-    - vars/vm_vars.yml
+  vars:
+    # ----- Identity -----
+    vm_name: rhel9-vm1
+    vm_namespace: vms-aap-day2
+
+    # ----- Compute -----
+    vm_instancetype: u1.small           # VirtualMachineClusterInstancetype
+    vm_preference: rhel.9               # VirtualMachineClusterPreference
+
+    # ----- Boot disk -----
+    boot_image_size: 30Gi
+    boot_image_source_name: rhel9
+    boot_image_source_namespace: openshift-virtualization-os-images
+
+    # ----- Network -----
+    vm_mac_address: "02:ff:39:00:00:03"
+    vm_network_name: default
+
+    # ----- Run strategy -----
+    vm_run_strategy: RerunOnFailure     # RerunOnFailure | Always | Halted | Manual
+
+    # ----- SSH / cloud-init -----
+    # vm_ssh_secret_name defaults to vm_name (matches your existing convention).
+    # Override explicitly if the secret has a different name.
+    vm_ssh_secret_name: "{{ vm_name }}"
+    cloud_init_user: rhel
+    cloud_init_password: openshift
+    cloud_init_ssh_pwauth: true
+
+    # ----- Labels / ArgoCD -----
+    argocd_app_instance: bootstrap
+    argocd_sync_wave: "2"
+
+    # ----- Machine type (empty = omit, cluster default used) -----
+    vm_machine_type: ""                 # e.g. pc-q35-rhel9.4.0
 
   tasks:
 
