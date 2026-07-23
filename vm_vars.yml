@@ -1,0 +1,46 @@
+---
+# ============================================================
+#  OpenShift Virtualization – VM provisioning variables
+#  Adjust these values per VM before running the playbook.
+# ============================================================
+
+# ----- Identity -----
+vm_name: rhel9-vm1
+vm_namespace: vms-aap-day2
+
+# ----- Compute -----
+vm_instancetype: u1.small          # VirtualMachineClusterInstancetype name
+vm_preference: rhel.9              # VirtualMachineClusterPreference name
+vm_cpu_cores: 2                    # Used when NOT relying on instancetype (set instancetype to "" to override)
+vm_memory: 4Gi                     # Used when NOT relying on instancetype (set instancetype to "" to override)
+
+# ----- Boot disk -----
+boot_image_size: 30Gi              # Requested size for the root DataVolume
+boot_image_source_name: rhel9      # DataSource name  (in openshift-virtualization-os-images)
+boot_image_source_namespace: openshift-virtualization-os-images
+
+# ----- Network -----
+vm_mac_address: "02:ff:39:00:00:03"  # MAC address for the default masquerade interface
+vm_network_name: default             # Pod network name
+
+# ----- Run strategy -----
+vm_run_strategy: RerunOnFailure      # RerunOnFailure | Always | Halted | Manual
+
+# ----- SSH / cloud-init -----
+# Name of the AAP Machine Credential secret that holds the SSH public key.
+# The secret must exist in vm_namespace before the playbook runs.
+# In AAP the credential type "Machine" stores the public key under
+# the key "ssh_public_key"; the controller job template injects it
+# as a Kubernetes Secret via the credential injector.
+vm_ssh_secret_name: "{{ vm_name }}"   # Secret name – defaults to vm_name (matches your existing convention)
+
+cloud_init_user: rhel
+cloud_init_password: openshift        # Will be set to expire=false; rotate via AAP Survey if needed
+cloud_init_ssh_pwauth: true
+
+# ----- Labels / ArgoCD -----
+argocd_app_instance: bootstrap
+argocd_sync_wave: "2"
+
+# ----- Machine type (optional – leave blank to use cluster default) -----
+vm_machine_type: ""                   # e.g. pc-q35-rhel9.4.0  (empty = omit from manifest)
