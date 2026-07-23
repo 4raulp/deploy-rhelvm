@@ -1,0 +1,11 @@
+---
+# vm_vars.yml
+vm_name: raul-test
+vm_namespace: default # Change this to your target OpenShift project/namespace
+boot_image_size: 20Gi
+vm_cpus_cores: 2
+vm_memory: 4Gi # Added memory since the VM definition typically requires it
+vm_macaddress: "02:00:00:00:00:01" # Replace with your desired MAC address
+
+# The SSH key to be injected via cloud-init
+ssh_public_key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDki/v1lsYkUnXGyxiORRpwIT2AO0QHbQpK2qWHZMfiDBKqLX74XKxtC5VdjGPvF0nTLdtWe3OmXQy2Wx0H0dhHtEtszm4LFxpELyzXw0tvajiLba3n2rdmti+3Y+1YYIAdVVSxXF5ZdM5fAVXeyu0cHIoAl2UQIAVTboPGPMDKWpoRSQZYlxKWjEUqdkMAQhWrsfiLozQiFFt/ttqQDlhk5o0RUBUsC/v7mZd8MBeyBnRrN+S3kLOCbpXmTdaRvIXWXY1mrYBCOe8EOimExDw1gmKhDWavmSdwSYQfROdzEGiaPMjCuf+XONoUEPiEdSg4Aqt3NChW1lbuiCGlmwCO7O2622einz0hkQb7Hc6EMGi2FGY0mfjylE0t8v841avEbEs4RO1EqYa8SMWfLJpumfgzIntbI55xvKfQo0NrnWfbZID0UDXFmudIbekaGdGL2kF5iOKA5ZZ5n08itMOmCkoJR74mA7Cmbirs68nn+tYfDmSzRQYukDCaFy65SrM= juliano@macbook-rh.local"
