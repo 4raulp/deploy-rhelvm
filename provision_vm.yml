@@ -67,7 +67,7 @@
                 spec:
                   sourceRef:
                     kind: DataSource
-                    name: fedora-image # This points to the default OpenShift Virt boot source
+                    name: fedora-server-small # This points to the default OpenShift Virt boot source
                     namespace: openshift-virtualization-os-images
                   storage:
                     resources:
