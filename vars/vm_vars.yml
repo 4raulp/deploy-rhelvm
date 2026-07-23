@@ -28,7 +28,7 @@ boot_image_source_name: rhel9      # DataSource name  (in openshift-virtualizati
 boot_image_source_namespace: openshift-virtualization-os-images
 
 # ----- Network -----
-vm_mac_address: "02:ff:39:00:00:03"  # MAC address for the default masquerade interface
+vm_mac_address: "02:ff:39:00:00:45"  # MAC address for the default masquerade interface
 vm_network_name: default             # Pod network name
 
 # ----- Run strategy -----
