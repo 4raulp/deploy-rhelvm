@@ -24,7 +24,7 @@
 
   vars:
     # ----- Identity -----
-    vm_name: raultest
+    vm_name: rhel9-vm1
     vm_namespace: vms-aap-day2
 
     # ----- Compute -----
@@ -37,7 +37,7 @@
     boot_image_source_namespace: openshift-virtualization-os-images
 
     # ----- Network -----
-    vm_mac_address: "02:ff:39:00:00:45"
+    vm_mac_address: "02:ff:39:00:00:03"
     vm_network_name: default
 
     # ----- Run strategy -----
@@ -78,10 +78,12 @@
         state: present
 
     # ------------------------------------------------------------------
-    # 2. Propagate the AAP SSH public key as a Kubernetes Secret
-    #    AAP injects the Machine Credential public key via the variable
-    #    {{ machine_credential_ssh_public_key }} when the credential is
-    #    attached to the Job Template.
+    # 2. Propagate the AAP SSH public key as a Kubernetes Secret.
+    #    KubeVirt accessCredentials reads every value in the Secret as an
+    #    authorized SSH public key. The field name (here: "key") is
+    #    arbitrary — KubeVirt iterates all values in the Secret.
+    #    AAP Machine Credential injects machine_credential_ssh_public_key
+    #    automatically when the credential is attached to the Job Template.
     # ------------------------------------------------------------------
     - name: Ensure SSH public-key secret exists for VM {{ vm_name }}
       kubernetes.core.k8s:
@@ -97,19 +99,25 @@
               app.kubernetes.io/managed-by: ansible-aap
           type: Opaque
           stringData:
-            # AAP Machine Credential injects this variable at runtime.
-            # It holds the plain-text SSH public key (e.g. "ssh-rsa AAAA…").
-            key: "{{ machine_credential_ssh_public_key }}"
+            key: "{{ machine_credential_ssh_public_key | trim }}"
 
     # ------------------------------------------------------------------
-    # 3. Build optional machine-type block (only when vm_machine_type set)
+    # 3. Build cloud-init userData via a template so indentation inside
+    #    the k8s definition dict is always rendered correctly.
+    # ------------------------------------------------------------------
+    - name: Build cloud-init userData
+      ansible.builtin.set_fact:
+        _cloud_init_userdata: "{{ lookup('template', 'templates/cloud_init.j2') }}"
+
+    # ------------------------------------------------------------------
+    # 4. Build optional machine-type block (only when vm_machine_type set)
     # ------------------------------------------------------------------
     - name: Set machine type fact
       ansible.builtin.set_fact:
         _machine_block: "{{ {'type': vm_machine_type} if vm_machine_type | length > 0 else {} }}"
 
     # ------------------------------------------------------------------
-    # 4. Build optional instancetype / preference blocks
+    # 5. Build optional instancetype / preference blocks
     #    If vm_instancetype is set we use it; otherwise we fall back to
     #    explicit cpu/memory values via a resources block.
     # ------------------------------------------------------------------
@@ -136,7 +144,7 @@
           }}
 
     # ------------------------------------------------------------------
-    # 5. Create (or update) the VirtualMachine object
+    # 6. Create (or update) the VirtualMachine object
     # ------------------------------------------------------------------
     - name: Create VirtualMachine {{ vm_name }} in {{ vm_namespace }}
       kubernetes.core.k8s:
@@ -194,8 +202,7 @@
                   devices:
                     autoattachPodInterface: false
                     interfaces:
-                      - macAddress: "{{ vm_mac_address }}"
-                        masquerade: {}
+                      - masquerade: {}
                         name: "{{ vm_network_name }}"
                   # Machine type is optional – only included when provided
                   machine: "{{ _machine_block if _machine_block | length > 0 else omit }}"
@@ -212,18 +219,12 @@
                       name: "{{ vm_name }}"
                     name: rootdisk
                   - cloudInitNoCloud:
-                      userData: |
-                        #cloud-config
-                        user: {{ cloud_init_user }}
-                        password: {{ cloud_init_password }}
-                        chpasswd:
-                          expire: false
-                        ssh_pwauth: {{ cloud_init_ssh_pwauth | lower }}
+                      userData: "{{ _cloud_init_userdata }}"
                     name: cloudinitdisk
       register: vm_result
 
     # ------------------------------------------------------------------
-    # 6. Wait for the VM to reach Running state
+    # 7. Wait for the VM to reach Running state
     # ------------------------------------------------------------------
     - name: Wait for VM {{ vm_name }} to be Ready
       kubernetes.core.k8s_info:
@@ -239,7 +240,7 @@
       delay: 20
 
     # ------------------------------------------------------------------
-    # 7. Print a summary
+    # 8. Print a summary
     # ------------------------------------------------------------------
     - name: Print VM status summary
       ansible.builtin.debug:
@@ -250,4 +251,4 @@
           - "MAC Address  : {{ vm_mac_address }}"
           - "Boot disk    : {{ boot_image_size }}"
           - "SSH Secret   : {{ vm_ssh_secret_name }}"
-          - "Run Strategy : {{ vm_run_strategy }}"
+
