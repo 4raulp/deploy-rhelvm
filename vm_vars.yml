@@ -1,7 +1,15 @@
 ---
 # ============================================================
-#  OpenShift Virtualization – VM provisioning variables
-#  Adjust these values per VM before running the playbook.
+#  OpenShift Virtualization – VM provisioning variables  (OPTIONAL)
+#
+#  This file is NOT loaded by the playbook automatically.
+#  All variables already have safe defaults inside provision_vm.yml
+#  and the playbook will run without this file.
+#
+#  Use this file to override defaults when running from the CLI:
+#    ansible-playbook provision_vm.yml -e @vars/vm_vars.yml
+#
+#  In AAP, use Extra Variables or a Survey instead.
 # ============================================================
 
 # ----- Identity -----
@@ -42,5 +50,7 @@ cloud_init_ssh_pwauth: true
 argocd_app_instance: bootstrap
 argocd_sync_wave: "2"
 
+# ----- Machine type (optional – leave blank to use cluster default) -----
+vm_machine_type: ""                   # e.g. pc-q35-rhel9.4.0  (empty = omit from manifest)
 # ----- Machine type (optional – leave blank to use cluster default) -----
 vm_machine_type: ""                   # e.g. pc-q35-rhel9.4.0  (empty = omit from manifest)
