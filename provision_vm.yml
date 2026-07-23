@@ -1,0 +1,220 @@
+---
+# ============================================================
+#  Provision a RHEL 9 Virtual Machine on OpenShift Virtualization
+#
+#  Prerequisites
+#  -------------
+#  • An AAP Machine Credential whose SSH public key has been
+#    synchronized into a Kubernetes Secret in the target namespace.
+#    The secret name must match  vm_ssh_secret_name  (default: vm_name).
+#    See the "Ensure SSH secret exists" task for how to create it from
+#    the AAP credential injector variable {{ machine_credential_ssh_public_key }}.
+#  • The  kubernetes.core  collection installed on the EE:
+#      ansible-galaxy collection install kubernetes.core
+#  • A kubeconfig or in-cluster SA token available to the EE.
+#
+#  Variables (all in vars/vm_vars.yml)
+#  ------------------------------------
+#    vm_name, vm_namespace, vm_instancetype, vm_preference,
+#    vm_cpu_cores, vm_memory, boot_image_size,
+#    boot_image_source_name, boot_image_source_namespace,
+#    vm_mac_address, vm_run_strategy,
+#    vm_ssh_secret_name, cloud_init_user, cloud_init_password,
+#    cloud_init_ssh_pwauth, argocd_app_instance, argocd_sync_wave,
+#    vm_machine_type
+# ============================================================
+
+- name: Provision RHEL 9 VM on OpenShift Virtualization
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars_files:
+    - vars/vm_vars.yml
+
+  tasks:
+
+    # ------------------------------------------------------------------
+    # 1. Ensure the target namespace exists
+    # ------------------------------------------------------------------
+    - name: Ensure namespace {{ vm_namespace }} exists
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Namespace
+        name: "{{ vm_namespace }}"
+        state: present
+
+    # ------------------------------------------------------------------
+    # 2. Propagate the AAP SSH public key as a Kubernetes Secret
+    #    AAP injects the Machine Credential public key via the variable
+    #    {{ machine_credential_ssh_public_key }} when the credential is
+    #    attached to the Job Template.
+    # ------------------------------------------------------------------
+    - name: Ensure SSH public-key secret exists for VM {{ vm_name }}
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: "{{ vm_ssh_secret_name }}"
+            namespace: "{{ vm_namespace }}"
+            labels:
+              app.kubernetes.io/name: "{{ vm_name }}"
+              app.kubernetes.io/managed-by: ansible-aap
+          type: Opaque
+          stringData:
+            # AAP Machine Credential injects this variable at runtime.
+            # It holds the plain-text SSH public key (e.g. "ssh-rsa AAAA…").
+            key: "{{ machine_credential_ssh_public_key }}"
+
+    # ------------------------------------------------------------------
+    # 3. Build optional machine-type block (only when vm_machine_type set)
+    # ------------------------------------------------------------------
+    - name: Set machine type fact
+      ansible.builtin.set_fact:
+        _machine_block: "{{ {'type': vm_machine_type} if vm_machine_type | length > 0 else {} }}"
+
+    # ------------------------------------------------------------------
+    # 4. Build optional instancetype / preference blocks
+    #    If vm_instancetype is set we use it; otherwise we fall back to
+    #    explicit cpu/memory values via a resources block.
+    # ------------------------------------------------------------------
+    - name: Set instancetype fact
+      ansible.builtin.set_fact:
+        _instancetype_block: >-
+          {{
+            {
+              'kind': 'virtualmachineclusterinstancetype',
+              'name': vm_instancetype
+            }
+            if vm_instancetype | length > 0 else omit
+          }}
+
+    - name: Set preference fact
+      ansible.builtin.set_fact:
+        _preference_block: >-
+          {{
+            {
+              'kind': 'virtualmachineclusterpreference',
+              'name': vm_preference
+            }
+            if vm_preference | length > 0 else omit
+          }}
+
+    # ------------------------------------------------------------------
+    # 5. Create (or update) the VirtualMachine object
+    # ------------------------------------------------------------------
+    - name: Create VirtualMachine {{ vm_name }} in {{ vm_namespace }}
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: kubevirt.io/v1
+          kind: VirtualMachine
+          metadata:
+            name: "{{ vm_name }}"
+            namespace: "{{ vm_namespace }}"
+            annotations:
+              argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+              argocd.argoproj.io/sync-wave: "{{ argocd_sync_wave }}"
+            labels:
+              app.kubernetes.io/instance: "{{ argocd_app_instance }}"
+              app.kubernetes.io/name: "{{ vm_name }}"
+          spec:
+            # ---- Boot DataVolume ----
+            dataVolumeTemplates:
+              - metadata:
+                  name: "{{ vm_name }}"
+                spec:
+                  sourceRef:
+                    kind: DataSource
+                    name: "{{ boot_image_source_name }}"
+                    namespace: "{{ boot_image_source_namespace }}"
+                  storage:
+                    resources:
+                      requests:
+                        storage: "{{ boot_image_size }}"
+
+            # ---- Instance type & preference (cluster-scoped) ----
+            instancetype: "{{ _instancetype_block | default(omit) }}"
+            preference: "{{ _preference_block | default(omit) }}"
+
+            runStrategy: "{{ vm_run_strategy }}"
+
+            template:
+              metadata:
+                labels:
+                  network.kubevirt.io/headlessService: headless
+              spec:
+                # ---- SSH key injection from AAP credential ----
+                accessCredentials:
+                  - sshPublicKey:
+                      propagationMethod:
+                        noCloud: {}
+                      source:
+                        secret:
+                          secretName: "{{ vm_ssh_secret_name }}"
+
+                architecture: amd64
+
+                domain:
+                  devices:
+                    autoattachPodInterface: false
+                    interfaces:
+                      - macAddress: "{{ vm_mac_address }}"
+                        masquerade: {}
+                        name: "{{ vm_network_name }}"
+                  # Machine type is optional – only included when provided
+                  machine: "{{ _machine_block if _machine_block | length > 0 else omit }}"
+                  resources: {}
+
+                networks:
+                  - name: "{{ vm_network_name }}"
+                    pod: {}
+
+                subdomain: headless
+
+                volumes:
+                  - dataVolume:
+                      name: "{{ vm_name }}"
+                    name: rootdisk
+                  - cloudInitNoCloud:
+                      userData: |
+                        #cloud-config
+                        user: {{ cloud_init_user }}
+                        password: {{ cloud_init_password }}
+                        chpasswd:
+                          expire: false
+                        ssh_pwauth: {{ cloud_init_ssh_pwauth | lower }}
+                    name: cloudinitdisk
+      register: vm_result
+
+    # ------------------------------------------------------------------
+    # 6. Wait for the VM to reach Running state
+    # ------------------------------------------------------------------
+    - name: Wait for VM {{ vm_name }} to be Ready
+      kubernetes.core.k8s_info:
+        api_version: kubevirt.io/v1
+        kind: VirtualMachine
+        name: "{{ vm_name }}"
+        namespace: "{{ vm_namespace }}"
+      register: vm_status
+      until: >-
+        vm_status.resources | length > 0 and
+        (vm_status.resources[0].status.printableStatus | default('')) == 'Running'
+      retries: 30
+      delay: 20
+
+    # ------------------------------------------------------------------
+    # 7. Print a summary
+    # ------------------------------------------------------------------
+    - name: Print VM status summary
+      ansible.builtin.debug:
+        msg:
+          - "VM Name      : {{ vm_name }}"
+          - "Namespace    : {{ vm_namespace }}"
+          - "Status       : {{ vm_status.resources[0].status.printableStatus }}"
+          - "MAC Address  : {{ vm_mac_address }}"
+          - "Boot disk    : {{ boot_image_size }}"
+          - "SSH Secret   : {{ vm_ssh_secret_name }}"
+          - "Run Strategy : {{ vm_run_strategy }}"
