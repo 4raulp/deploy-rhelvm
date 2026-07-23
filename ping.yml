@@ -1,0 +1,7 @@
+- name: Connection Test
+  hosts: raul-test-raul-test
+  gather_facts: no
+  tasks:
+    - name: Verify connectivity and Python availability
+      ansible.builtin.ping: 
+
