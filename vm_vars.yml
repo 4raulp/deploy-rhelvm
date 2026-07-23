@@ -2,7 +2,7 @@
 # vm_vars.yml
 vm_name: raul-test
 vm_namespace: default # Change this to your target OpenShift project/namespace
-boot_image_size: 20Gi
+boot_image_size: 30Gi
 vm_cpus_cores: 2
 vm_memory: 4Gi # Added memory since the VM definition typically requires it
 vm_macaddress: "02:00:00:00:00:01" # Replace with your desired MAC address
