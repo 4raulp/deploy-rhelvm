@@ -90,7 +90,7 @@
                 spec:
                   sourceRef:
                     kind: DataSource
-                    name: fedora
+                    name: rhel9
                     namespace: openshift-virtualization-os-images
                   storage:
                     storageClassName: ocs-external-storagecluster-ceph-rbd
