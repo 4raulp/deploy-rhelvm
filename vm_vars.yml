@@ -1,6 +1,6 @@
 ---
 # vm_vars.yml
-vm_name: raul-test
+vm_name: vm1
 vm_namespace: raul-test # Change this to your target OpenShift project/namespace
 boot_image_size: 30Gi
 vm_cpus_cores: 2
