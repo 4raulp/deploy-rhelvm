@@ -98,3 +98,6 @@
                       requests:
                         storage: "{{ boot_image_size }}"
 
+- name: Pause for 30 seconds for VM initialization
+      ansible.builtin.pause:
+        seconds: 30
