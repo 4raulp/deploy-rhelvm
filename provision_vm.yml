@@ -74,20 +74,4 @@
                     resources:
                       requests:
                         storage: "{{ boot_image_size }}"
-    - name: Expose SSH port via NodePort Service
-          kubernetes.core.k8s:
-            state: present
-            definition:
-              apiVersion: v1
-              kind: Service
-              metadata:
-                name: "{{ vm_name }}-ssh"
-                namespace: "{{ vm_namespace }}"
-              spec:
-                type: NodePort
-                selector:
-                  kubevirt.io/domain: "{{ vm_name }}"
-                ports:
-                  - name: ssh
-                    port: 22
-                    targetPort: 22
+
