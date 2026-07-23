@@ -24,7 +24,7 @@
 
   vars:
     # ----- Identity -----
-    vm_name: rhel9-vm1
+    vm_name: raultest
     vm_namespace: vms-aap-day2
 
     # ----- Compute -----
