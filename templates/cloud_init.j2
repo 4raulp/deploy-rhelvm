@@ -1,8 +1,0 @@
-#cloud-config
-user: {{ cloud_init_user }}
-password: {{ cloud_init_password }}
-chpasswd:
-  expire: false
-ssh_pwauth: {{ cloud_init_ssh_pwauth | lower }}
-ssh_authorized_keys:
-  - {{ machine_credential_ssh_public_key | trim }}
