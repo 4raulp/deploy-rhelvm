@@ -7,6 +7,21 @@
     - vm_vars.yml
 
   tasks:
+    # STEP 1: Create the Secret containing the public key
+    - name: Ensure SSH Key Secret is present
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: "{{ vm_name }}-ssh-key"
+            namespace: "{{ vm_namespace }}"
+          type: Opaque
+          stringData:
+            key: "{{ ssh_public_key }}"
+
+    # STEP 2: Create the VirtualMachine referencing the Secret
     - name: Ensure the Fedora VirtualMachine is present and running
       kubernetes.core.k8s:
         state: present
@@ -25,6 +40,14 @@
                 labels:
                   kubevirt.io/domain: "{{ vm_name }}"
               spec:
+                # Dynamically inject the SSH key from the secret created in Step 1
+                accessCredentials:
+                  - sshPublicKey:
+                      propagationMethod:
+                        noCloud: {}
+                      source:
+                        secret:
+                          secretName: "{{ vm_name }}-ssh-key"
                 domain:
                   cpu:
                     cores: "{{ vm_cpus_cores }}"
@@ -50,24 +73,24 @@
                   - dataVolume:
                       name: "{{ vm_name }}-rootdisk"
                     name: rootdisk
-                  # Cloud-init injection for the SSH key
+                  # Configure user, password, and SSH password auth via cloud-init
                   - cloudInitNoCloud:
                       userData: |-
                         #cloud-config
-                        users:
-                          - name: fedora
-                            sudo: ALL=(ALL) NOPASSWD:ALL
-                            ssh_authorized_keys:
-                              - "{{ ssh_public_key }}"
+                        user: fedora
+                        password: openshift
+                        chpasswd:
+                          expire: false
+                        ssh_pwauth: true
                     name: cloudinitdisk
-            # Define the DataVolume to clone the default OpenShift Virt Fedora image
+
             dataVolumeTemplates:
               - metadata:
                   name: "{{ vm_name }}-rootdisk"
                 spec:
                   sourceRef:
                     kind: DataSource
-                    name: fedora # This points to the default OpenShift Virt boot source
+                    name: fedora
                     namespace: openshift-virtualization-os-images
                   storage:
                     storageClassName: ocs-external-storagecluster-ceph-rbd
